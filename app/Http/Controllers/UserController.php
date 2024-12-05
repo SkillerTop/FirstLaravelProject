@@ -1,35 +1,56 @@
 <?php
+
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class UserController extends Controller
 {
-    public function createUser()
+    public function createUser(Request $request)
     {
-        DB::table('users')->insert([
-            'name' => 'John Doe',
-            'email' => 'john@example.com',
-            'password' => bcrypt('password'),
+        // Валідація запиту
+        $validatedData = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8|confirmed',
         ]);
+
+        // Створення нового користувача
+        $user = User::create([
+            'name' => $validatedData['name'],
+            'email' => $validatedData['email'],
+            'password' => bcrypt($validatedData['password']),
+        ]);
+
+        return response()->json($user, 201);
     }
 
     public function getUsers()
     {
-        $users = DB::table('users')->get();
+        $users = User::all();
         return response()->json($users);
     }
 
-    public function updateUser($id)
+    public function updateUser(Request $request, $id)
     {
-        DB::table('users')
-            ->where('id', $id)
-            ->update(['name' => 'Jane Doe']);
+        // Валідація запиту
+        $validatedData = $request->validate([
+            'name' => 'sometimes|required|string|max:255',
+            'email' => 'sometimes|required|string|email|max:255|unique:users,email,' . $id,
+        ]);
+
+        $user = User::findOrFail($id);
+        $user->update($validatedData);
+
+        return response()->json($user);
     }
 
     public function deleteUser($id)
     {
-        DB::table('users')->where('id', $id)->delete();
-    }
+        $user = User::findOrFail($id);
+        $user->delete();
+
+        return response()->json(null, 204);
+}
 }
